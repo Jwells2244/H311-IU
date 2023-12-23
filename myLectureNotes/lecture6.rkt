@@ -1,0 +1,114 @@
+#lang racket
+(require racket/trace)
+
+;(define val-of
+;  (λ (e env)
+;    (match e
+;      (`,n
+;       #:when (natural? n)
+;       n)
+;      (`(+ ,e1 ,e2)
+;       (+ (val-of e1 env) (val-of e2 env)))
+;      (`,y #:when (symbol? y)
+;           (env y)) ;;env is a function
+;      (`(λ (,x) ,body)
+;       #:when (symbol? x)
+;       (λ (arg)
+;         (val-of body (λ (y)
+;                        (cond
+;                          ((eqv? y x) arg)
+;                          (else (env y)))))))
+;      (`(,rator ,rand)
+;       ((val-of rator env)
+;        (val-of rand env))))))
+
+(define env-val-of-ri
+  (λ (e env)
+    (match e
+      (`,n
+       #:when (natural? n)
+       n)
+      (`(+ ,e1 ,e2)
+       (+ (env-val-of-ri e1 env) (env-val-of-ri e2 env)))
+      (`,y #:when (symbol? y)
+           (apply-env env y)) ;;env is a function
+      (`(λ (,x) ,body)
+       #:when (symbol? x)
+       (λ (arg)
+           (env-val-of-ri body (extend-env x arg env))))
+      (`(,rator ,rand)
+       ((env-val-of-ri rator env)
+        (env-val-of-ri rand env))))))
+
+;(define apply-env
+;  (λ (env y)
+;    (env y)))
+;
+;(define extend-env
+;  (λ (x arg env)
+;  (λ (y)
+;    (cond
+;      ((eqv? y x) arg)
+;      (else (apply-env env y))))))
+;
+;(define empty-env
+;  (λ ()
+;    (λ (y)
+;      (error 'error "Unbound ~a" y))))
+(define apply-env
+  (λ (env y)
+    (match env
+       (`(empty-env)(error "Unbound var ~a" y))
+    (`(extend-env ,x ,arg ,env)
+     (cond
+      ((eqv? y x) arg)
+      (else (apply-env env y))))
+      (_ (env y)))))
+
+(define extend-env
+  (λ (x arg env)
+    `(extend-env ,x ,arg ,env)))
+
+(define empty-env
+  (λ ()
+      `(empty-env)))
+
+
+
+(env-val-of-ri '(((λ (x) x) ;;ri stands for representation independent
+           (λ (x) x))
+          100)
+        (empty-env))
+(env-val-of-ri '(+ 5 ((λ (n) (+ n 1)) 2))
+        (empty-env))
+
+
+
+(define clos-val-of-ri
+  (λ (e env)
+    (match e
+      (`,n
+       #:when (natural? n)
+       n)
+      (`(+ ,e1 ,e2)
+       (+ (clos-val-of-ri e1 env) (clos-val-of-ri e2 env)))
+      (`,y #:when (symbol? y)
+           (apply-clos env y)) ;;env is a function
+      (`(λ (,x) ,body)
+       #:when (symbol? x)
+       (make-clos x body env))
+      (`(,rator ,rand)
+       (apply-clos (clos-val-of-ri rator env)
+        (clos-val-of-ri rand env))))))
+
+(define apply-clos
+        (λ (rator rand)
+          (rator rand)))
+
+(define make-clos
+  (λ (x body env)
+    (λ (arg)
+           (make-clos(clos-val-of-ri body (extend-env x arg env))))))
+
+(clos-val-of-ri '(+ 5 ((λ (n) (+ n 1)) 2))
+        (empty-env))

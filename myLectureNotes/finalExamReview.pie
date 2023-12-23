@@ -1,0 +1,34 @@
+#lang racket
+
+
+
+
+;2
+;eta reduction
+;a
+(lambda (x)
+  ((lambda (y)
+     ((lambda (f) f) y))
+   x))
+
+;(lambda (f) f)
+;b
+(lambda (m)
+   (lambda (f)
+      ((lambda (x)
+          ((lambda (g) (g m)) x))
+       f)))
+;(lambda (m) (lambda (g) (g m)))
+
+;3
+;free and bound
+;(lambda (p)
+;   (lambda (q)
+;      (r (lambda (r) q)))
+;   (lambda (r)
+;      (p (q r))))
+
+;free
+;r, q,
+;bound
+;r, p, q

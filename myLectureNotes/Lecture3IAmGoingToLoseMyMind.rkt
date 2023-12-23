@@ -1,0 +1,85 @@
+#lang racket
+(require racket/trace)
+
+(define !
+  (λ (n)
+    (cond
+      ((zero? n) 1)
+      (else (* n(! (sub1 n)))))))
+(! 5)
+
+(define loop
+  (λ (n)
+  (cond
+    ((zero? n) 0)
+  (else (loop (sub1 n))))))
+
+;;(loop 500)
+
+(define even
+  (λ (n)
+    (cond
+      ((zero? n)#t)
+      (else (odd (sub1 n))))))
+(define odd
+  (λ (n)
+    (cond
+      ((zero? n)#f)
+      (else (even (sub1 n))))))
+(even 6)
+(odd 7)
+
+(letrec ((! (λ (n)
+              (cond
+                ((zero? n) 1)
+                (else (* n (! (sub1 n))))))))
+(! 5))
+
+(define EvenOddClass
+  (let ((Even?
+  (λ (this n)
+    (cond
+      ((zero? n)#t)
+      (else ((cadr this) this (sub1 n))))))
+    (Odd? (λ (this n)
+    (cond
+      ((zero? n)#f)
+      (else ((car this) this (sub1 n)))))))
+  (list Even? Odd?)))
+
+;;((car (cdr EvenOddClass))EvenOddClass 6)
+;;((car EvenOddClass) EvenOddClass 16)
+
+'(mary had a little lamb whose fleece was white as snow)
+'(mary had a little lion whose fleece was white as snow)
+(quote (mary had a little lion whose fleece was white as snow))
+;;Quasiquote can be substituted with ` and getting rid of a parenthesis
+((λ (animal color)
+  `(mary had a little ,animal whose fleece was ,color as snow))
+'kangaroo
+'gray)
+
+(define parse/match
+  (λ (e)
+    (match e
+      (`,y #:when (symbol? y) y)
+       (`(λ (,x) ,body) #:when (symbol? x) `(lambda (,x) ,(parse/match body)))
+       (`(,rator ,rand) `(,(parse/match rator) ,(parse/match rand))))))
+
+(parse/match '(λ (x) (λ (y) (z (x y)))))
+
+(define e1=e2?
+  (λ (e1 e2)
+    (match `(,e1 ,e2)
+      (`(,y1 ,y2) #:when (and (symbol? y1)
+                               (symbol? y2)))
+                  (eqv? y1 y2))
+      (`((λ (,x1) ,body) (λ (,x2) ,body2)) #:when (and (symbol? x1)
+                                                       (symbol? x2))
+      (and (eqv? x1 x2) (e1=e2? body1 body2)))
+    (`((,rator1 ,rand1) (,rator2 ,rand2))
+     (and (e1=e2? rator1 rator2) (e1=e2? rand1 rand2)))
+      (else #f)))
+
+(e1=e2? '(λ (x) (x x))
+        `(λ (y) y))

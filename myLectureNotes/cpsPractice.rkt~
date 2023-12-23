@@ -1,0 +1,9 @@
+#lang racket
+( define flat
+   ( lambda (ls)
+      (cond
+        [ (empty? ls) '()]
+        [( pair? (car ls))
+         ( append (flat (car ls)) (flat (cdr ls )))]
+        [else (cons (car ls) (flat (cdr ls )))])))
+

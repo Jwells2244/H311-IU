@@ -1,0 +1,33 @@
+#lang racket
+
+;;Question 1 This is probably not right because they specifically ask you to not go up the tree to find the idx
+(define idx
+  (λ (y l)
+    (match l
+      (`()
+       (error "not found"))
+      (`(,a . ,d)
+       #:when (eqv? y a)
+       0)
+      (_ (add1 (idx y (cdr l)))))))
+
+(define lex
+  (λ (e lenv)
+    (match e
+      (`,y
+       #:when (symbol? y)
+       (list 'var (idx y lenv)))
+      (`(lambda (,x) ,b)
+       #:when (symbol? x)
+       `(lambda ,(lex b (cons x lenv))))
+      (`(,rator ,rand)
+       `(,(lex rator lenv) ,(lex rand lenv))))))
+
+
+;;(lex '(lambda (x) x)'())
+;;(lex '(lambda (y) (lambda (x) y))'())
+;;(lex '(lambda (y) (lambda (x) (x y)))'())
+;;(lex '(lambda (x) (lambda (x) (x x))) 
+;;       '())
+;;(lex '(lambda (x) (lambda (x) (y x))) ;;Need to implement something to handle free variables
+;;     '())

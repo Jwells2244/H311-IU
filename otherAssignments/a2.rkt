@@ -1,0 +1,409 @@
+#lang racket
+(require racket/trace)
+
+;;Problem 1
+(define list-ref
+  (lambda (ls n)
+    (letrec
+      ([nth-cdr (lambda (n)
+                  (match n
+
+                    (`,y
+                     #:when (zero? n)
+                     (cons (car ls) empty))
+
+                    (_
+                     (cons (list-ref (cdr ls) (sub1 n)) empty))
+                    )
+                  )])
+      (car (nth-cdr n)))))
+
+
+;;(list-ref '(a b c) 2)
+;;(list-ref '(a b c) 0)
+;;(list-ref '(a b c d) 3)
+
+
+
+;;Problem 2
+(define union
+  (λ (ls1 ls2)
+    (cond
+      ((null? ls2) ls1)
+      ((memv (car ls2) ls1) (union ls1 (cdr ls2)))
+      (else
+       (union (cons (car ls2) ls1) (cdr ls2))))))
+;;(union '() '())
+;;(union '(x) '())
+;;(union '(x) '(x))
+;;(union '(x y) '(x z))
+
+;;Problem 3
+(define (stretch pred x)
+  (lambda (y)
+    (or (eqv? y x) (pred y))))
+;;((stretch even? 1) 0)
+;;((stretch even? 1) 1)
+;;((stretch even? 1) 2)
+;;((stretch even? 1) 3)
+;;(filter (stretch even? 1) '(0 1 2 3 4 5))
+;;(filter (stretch (stretch even? 1) 3) '(0 1 2 3 4 5))
+;;(filter (stretch (stretch (stretch even? 1) 3) 7) '(0 1 2 3 4 5))
+
+;;Problem 4
+(define walk-symbol
+  (λ (x s)
+    (define assv-result (assv x s))
+    (match assv-result
+      (`,y
+       #:when (eqv? #f y)
+       x)
+      (`,y
+       #:when (symbol? (cdr y))
+       (walk-symbol (cdr y) s))
+      (_ (cdr assv-result)))))
+;;(walk-symbol 'a '((a . 5)))
+;;(walk-symbol 'a '((b . c) (a . b)))
+;;(walk-symbol 'a '((a . 5) (b . 6) (c . a)))
+;;(walk-symbol 'c '((a . 5) (b . (a . c)) (c . a)))
+;;(walk-symbol 'b '((a . 5) (b . ((c . a))) (c . a)))
+;;(walk-symbol 'd '((a . 5) (b . (1 2)) (c . a) (e . c) (d . e)))
+;;(walk-symbol 'd '((a . 5) (b . 6) (c . f) (e . c) (d . e)))
+;;Problem 5
+;(define lambda-exp? ORIGINAL FUNCTION
+;  (λ (E)
+;    (letrec
+;      ([p
+;        (λ (e)
+;          (match e
+;            [`,y #t]
+;            [`(lambda (,x) ,body) (p body)]
+;            [`(,rator ,rand . ,more) (or (p rator) (p rand))]
+;            [else #f]))])
+;;      (p E))))
+
+(define lambda-exp?
+  (λ (E)
+    (letrec
+      ([p
+        (λ (e)
+          (match e
+            [`,y #:when (symbol? y) #t]
+            [`(lambda (,x) ,body) #:when (symbol? x) (p body)]
+            [`(,rator ,rand) (and (p rator) (p rand))]
+            [else #f]))])
+      (p E))))
+
+
+;(lambda-exp? 'x) ;T
+;(lambda-exp? '(lambda (x) x)) ;T
+;(lambda-exp? '(lambda (f) (lambda (x) (f (x x))))) ;T
+;(lambda-exp? '(lambda (x) (lambda (y) (y x)))) ;T
+;(lambda-exp? '(lambda (z) ((lambda (y) (a z)) (h (lambda (x) (h a)))))) ;T
+;(lambda-exp? '(lambda (lambda) lambda)) ;T
+;(lambda-exp? '((lambda (lambda) lambda) (lambda (y) y))) ;T
+;(lambda-exp? '((lambda (x) x) (lambda (x) x))) ;T
+;(lambda-exp? '((lambda (5) x) (lambda (x) x))) ;;F
+;(lambda-exp? '((lambda (x) x) (lambda (x) x) (lambda (x) x))) ;F
+;(lambda-exp? '((lambda (lambda (x) x) x)  (lambda (x) x))) ;F
+
+
+;;Problem 6
+(define var-occurs?
+  (λ (x exp)
+    (match exp
+      (`,y
+       #:when (eqv? x y) #t)
+      (`(λ (,param) ,body)
+       #:when (eqv? x body) #t)
+      (`(,rator ,rand)
+       (or (var-occurs? x rator) (var-occurs? x rand)))
+      (_
+       #f))))
+;;(var-occurs? 'x 'x)
+;;(var-occurs? 'x '(lambda (x) y))
+;;(var-occurs? 'x '(lambda (y) x))
+;;(var-occurs? 'x '((z y) x))
+
+;;Problem 7
+(define append ;;A1 append
+  (λ (x y)
+    (cond
+      ((null? x) y)
+      (else
+       (cons (car x) (append (cdr x) y))))))
+(define vars
+  (λ (E)
+    (letrec
+      ([p
+        (λ (e)
+          (match e
+            [`,y
+             #:when (symbol? y)
+             (cons y empty)]
+            [`(lambda (,x) ,body)
+             #:when (symbol? x)
+             (p body)]
+            [`(,rator ,rand)
+             (append (p rator) (p rand))
+             ]
+            [else '()]
+            ))])
+      (p E))))
+
+;(vars 'x)
+;(vars '(lambda (x) x))
+;(vars '((lambda (y) (x x)) (x y)))
+;(vars '(lambda (z) ((lambda (y) (a z))
+;                      (h (lambda (x) (h a))))))
+;(vars '())
+
+;;Problem 8
+(define unique-vars
+  (λ (E)
+    (letrec
+      ([p
+        (λ (e)
+          (match e
+            [`,y
+             #:when (symbol? y)
+             (cons y empty)]
+            [`(lambda (,x) ,body)
+             #:when (symbol? x)
+             (p body)]
+            [`(,rator ,rand)
+             (union (p rator) (p rand))
+             ]
+            [else '()]
+            ))])
+      (p E))))
+
+;;(unique-vars 'x)
+;;(unique-vars '(lambda (x) x))
+;;(unique-vars '((lambda (y) (x x)) (x y)))
+;;(unique-vars '(lambda (z) ((lambda (y) (a z))
+ ;;                     (h (lambda (x) (h a))))))
+;;(unique-vars '())
+
+;;Problem 9
+(define var-occurs-free?
+  (λ (var expr)
+    (match expr
+      (`,y
+       #:when (symbol? y)
+       (eqv? var y))
+      (`(lambda (,x) ,body)
+       #:when (symbol? x)
+       (and (var-occurs-free? var body)
+            (not (eqv? x var))))
+      (`(,rator ,rand)
+       (or (var-occurs-free? var rator) (var-occurs-free? var rand)))
+      (else (var-occurs? var expr)))))
+
+;;(var-occurs-free? 'x 'x)
+;;(var-occurs-free? 'x '(lambda (y) y))
+;;(var-occurs-free? 'x '(lambda (x) (x y)))
+;;(var-occurs-free? 'x '(lambda (x) (lambda (x) x)))
+;;(var-occurs-free? 'y '(lambda (x) (x y)))
+;;(var-occurs-free? 'y '((lambda (y) (x y)) (lambda (x) (x y))))
+;;(var-occurs-free? 'x '((lambda (x) (x x)) (x x)))
+;;Problem 10
+(define var-occurs-bound?
+  (λ (var expr)
+    (match expr
+      (`,y
+       #:when (symbol? y)
+       #f)
+      (`(lambda (,x) ,body)
+       #:when (symbol? x)
+       (or (var-occurs-bound? var body)
+           (and (eqv? x var)
+                (var-occurs-free? var body))))
+      (`(,rator ,rand)
+       (or (var-occurs-bound? var rator) (var-occurs-bound? var rand))))))
+;;(var-occurs-bound? 'x 'x) ;;f
+;;(var-occurs-bound? 'x '(lambda (x) x)) ;;t
+;;(var-occurs-bound? 'y '(lambda (x) x)) ;;f
+;;(var-occurs-bound? 'x '((lambda (x) (x x)) (x x)));;t
+;;(var-occurs-bound? 'z '(lambda (y) (lambda (x) (y z)))) ;;f
+;;(var-occurs-bound? 'z '(lambda (y) (lambda (z) (y z)))) ;;t
+;;(var-occurs-bound? 'x '(lambda (x) y)) ;;f
+;;(var-occurs-bound? 'x '(lambda (x) (lambda (x) x))) ;;t
+
+;;Problem 11
+(define free? ;;Free we defined in class
+  (λ (var expr)
+    (match expr
+      (`,y
+       #:when (symbol? y)
+       (eqv? var y))
+      (`(lambda (,x) ,body)
+       #:when (symbol? x)
+       (and (free? var body)
+            (not (eqv? x var))))
+      (`(,rator ,rand)
+       (or (free? var rator) (free? var rand))))))
+
+(define unique-free-vars
+  (λ (E)
+    (letrec
+      ([p
+        (λ (e)
+          (match e
+            [`,y
+             #:when (and (symbol? y) (free? y E))
+             (cons y empty)]
+            [`(lambda (,x) ,body)
+             #:when (symbol? x)
+             (p body)]
+            [`(,rator ,rand)
+             (union (p rator) (p rand))
+             ]
+            [else '()]
+            ))])
+      (p E))))
+;;(unique-free-vars 'x)
+;;(unique-free-vars '(lambda (x) (x y)))
+;;(unique-free-vars '((lambda (x) ((x y) e)) (lambda (c) (x (lambda (x) (x (e c)))))))
+;;Problem 12
+
+(define unique-bound-vars
+  (λ (E)
+    (letrec
+      ([p
+        (λ (e)
+          (match e
+            [`,y
+             #:when (and (symbol? y) (var-occurs-bound? y E))
+             (cons y empty)]
+            [`(lambda (,x) ,body)
+             #:when (symbol? x)
+             (p body)]
+            [`(,rator ,rand)
+             (union (p rator) (p rand))
+             ]
+            [else '()]
+            ))])
+      (p E))))
+
+;;(unique-bound-vars 'x)
+;;(unique-bound-vars '(lambda (x) y))
+;;(unique-bound-vars '(lambda (x) (x y)))
+;;(unique-bound-vars '((lambda (x) ((x y) e)) (lambda (c) (x (lambda (x) (x (e c)))))))
+;;(unique-bound-vars '(lambda (y) y))
+;;(unique-bound-vars '(lambda (x) (y z)))
+;;(unique-bound-vars '(lambda (x) (lambda (x) x)))
+
+
+;;Problem 13
+;;Old
+;(define e1=e2?
+;  (λ (e1 e2)
+;    (match `(,e1 ,e2)
+;      (`(,y1 ,y2)
+;       #:when (and (symbol? y1) (symbol? y2))
+;       (eqv? y1 y2))
+;      (`((λ (,x1) ,b1) (λ (,x2) ,b2))
+;       #:when (and (symbol? x1) (symbol? x2))
+;       (and (e1=e2? b1 b2)
+;            (eqv? x1 x2)))
+;      (`((,rator1 ,rand1) (,rator2 ,rand2))
+;       (and (e1=e2? rator1 rator2)
+;            (e1=e2? rand1 rand2))))))
+; (`((lambda (,x1) ,b1) (lambda (,x2) ,b2))
+;       #:when (and (indicie? x1) (indicie? x2))
+;       (eqv? b1 b2))
+
+(define indicie? natural?)
+(define idx
+  (λ (y l)
+    (match l
+      (`()
+       (error "not found"))
+      (`(,a . ,d)
+       #:when (eqv? y a)
+       0)
+      (_ (add1 (idx y (cdr l)))))))
+(define lex
+  (λ (e lenv)
+    (match e
+      (`,y
+       #:when (symbol? y)
+       (idx y lenv))
+      (`(λ (,x) ,b)
+       #:when (symbol? x)
+       `(λ ,(lex b (cons x lenv))))
+      (`(,rator ,rand)
+       `(,(lex rator lenv) ,(lex rand lenv))))))
+
+
+(define e1=e2?
+  (λ (e1  e2)
+    (match `(,e1 ,e2)
+      (`(,y1 ,y2)
+       #:when (and (indicie? y1) (indicie? y2))
+       (eqv? y1 y2))
+
+      (`((λ (,v1) ,b1) (λ (,v2) ,b2))
+       (e1=e2? (lex e1 '()) (lex e2 '()))
+       )
+
+      (`((λ ,b1) (λ ,b2))
+       (e1=e2? b1 b2))
+
+      (`((,rator1 ,rand1) (,rator2 ,rand2))
+       (and (e1=e2? rator1 rator2)
+            (e1=e2? rand1 rand2))))))
+(e1=e2? '(λ (x) x) '(λ (y) y)) ; True
+(e1=e2? '(λ (x) (λ (y) (x y))) '(λ (x) (λ (z) (x z)))) ; True
+(e1=e2? '(λ (x) (λ (y) (x y))) '(λ (x) (λ (x) (x x)))) ; False
+
+
+
+;;Problem 14, brain teasers
+(define fact
+  (λ (n)
+    (cond
+      [(zero? n) 1]
+      [else (* n (fact (sub1 n)))])))
+
+(define t-fact
+  (λ (n result)
+    (cond
+      ((zero? n) result)
+      (else (t-fact (sub1 n) (* n result))))
+  ))
+;;(fact 5)
+;;(t-fact 5 1)
+
+;;problem 15 Old walk-symbol
+;(define walk-symbol
+;  (λ (x s)
+;    (define assv-result (assv x s))
+;    (match assv-result
+;      (`,y
+;       #:when (eqv? #f y)
+;       x)
+;      (`,y
+;       #:when (symbol? (cdr y))
+;       (walk-symbol (cdr y) s))
+;;      (_ (cdr assv-result)))))
+
+(define walk-symbol-update
+  (λ (x s)
+    (match x
+      (`,y
+       #:when (eqv? #f (assv y s))
+       x)
+      (else(begin (define assv-result (cdr(assv x s))) (set-box! (cdr(assv x s)) (walk-symbol-update (unbox assv-result) s))
+    (walk-symbol-update (unbox assv-result) s))))))
+
+
+
+(define a-list `((c . ,(box 15)) (e . ,(box 'f)) (b . ,(box 'c)) (a . ,(box 'b))))
+a-list
+(walk-symbol-update 'a a-list)
+a-list
+
+
+

@@ -1,0 +1,293 @@
+#lang racket
+;;Assignment 1 Jonathan Wells, jonawell
+;;Problem 1
+(define countdown
+  (λ (n)
+  (cond
+    ((zero? n) '(0))
+    (else (cons n (countdown (sub1 n)))))))
+
+;;(countdown 5)
+
+;;Problem 2
+(define insertL
+  (λ (x y z)
+    (cond
+      ((null? z) '())
+      ((eqv? (car z) x)
+       (cons y
+             (cons x
+                   (insertL x y (cdr z)))))
+      (else (cons (car z) (insertL x y (cdr z)))))))
+;;(insertL 'x 'y '(x z z x y x))
+
+;;Problem 3
+(define remv-1st
+  (λ (x y)
+    (cond
+      ((null? y) '())
+      ((eqv? (car y) x) (cdr y))
+      (else (cons (car y) (remv-1st x (cdr y)))))))
+;;(remv-1st 'x '(x y z x))
+;;(remv-1st 'y '(x y z y x))
+;;(remv-1st 'z '(a b c))
+
+;;Problem 4
+(define remove-from
+  (λ (x y)
+    (cond
+      ((null? y) '())
+      ((x (car y)) (remove-from x (cdr y)))
+      (else
+       (cons (car y) (remove-from x (cdr y)))))))
+;;(remove-from even? '(1 2 3 4 5 6))
+;;Problem 5
+(define map
+  (λ (p ls)
+    (cond
+      ((null? ls) '())
+      (else
+       (cons (p (car ls)) (map p (cdr ls)))))))
+;;(map sub1 '(1 2 3 4))
+
+;;Problem 6
+(define zip
+  (λ (x y)
+    (cond
+      ((null? x) '())
+      ((null? y) '())
+      (else
+       (cons (cons (car x) (car y)) (zip (cdr x) (cdr y)))))))
+;;(zip '(1 2 3) '(a b c))
+;;(zip '(1 2 3 4 5 6) '(a b c))
+;;(zip '(1 2 3) '(a b c d e f))
+
+;;Problem 7 
+(define list-index-ofv
+  (λ (x y)
+    (cond
+      ((eqv? (car y) x) 0)
+      (else
+       (+ 1 (list-index-ofv x (cdr y)))))))
+;;(list-index-ofv 'x '(x y z x x))
+;;(list-index-ofv 'x '(y z x x))
+
+
+;;Problem 8
+(define append
+  (λ (x y)
+    (cond
+      ((null? x) y)
+      (else
+       (cons (car x) (append (cdr x) y))))))
+;;(append '(42 120) '(1 2 3))
+;;(append '(a b c) '(cat dog))
+
+;;Problem 9
+(define reverse
+  (λ (x)
+    (cond
+      ((null? x) '())
+      (else
+       (append (reverse (cdr x)) (list (car x)))))))
+;;(reverse '(a 3 x))
+
+;;Problem 10
+(define repeat
+  (λ (x y)
+    (cond
+      ((null? x) '())
+      ((zero? y) '())
+      (else
+       (append (repeat x (sub1 y)) x)))))
+;;(repeat '(4 8 11) 4)
+
+;;Problem 11 Work in progress, nested lists do not work
+(define same-lists*
+  (λ (x y)
+    (cond
+      ((and (null? x) (null? y) #t))
+      ((null? x) #f)
+      ((null? y) #f)
+      ((and (pair? (car x)) (pair? (car y)) (same-lists* (car x) (car y))))
+      ((pair? (car x)) #f)
+      ((pair? (car y)) #f)
+      ((not(eqv? (car x) (car y))) #f)
+      (else
+       (same-lists* (cdr x) (cdr y))))))
+;;(same-lists* '() '())
+;;(same-lists* '(1 2 3 4 5) '(1 2 3 4 5))
+;;(same-lists* '(1 2 3 4) '(1 2 3 4 5))
+;;(same-lists* '(a (b c) d) '(a (b) c d))
+;;(same-lists* '((a) b (c d) d) '((a) b (c d) d))
+
+
+;;Problem 12
+;;(equal? '((w . (x . ())) . (y . ((z . ()) . ()))) '((w x) y (z)))
+;; '((w . (x . ())) . (y . ((z . ()) . ())))
+
+;;;Problem 13
+(define length
+  (λ (x)
+    (cond
+      ((null? x) 0)
+      (else
+       (add1 (length (cdr x)))))))
+
+
+(define binary->natural
+  (λ (x)
+  (cond
+    ((null? x) 0)
+    ((eqv? (length x) 1) (car x))
+    (else
+     (+ (* 2 (binary->natural (cdr x))) (car x))))))
+;;(binary->natural '())
+;;(binary->natural '(0 0 1))
+;;(binary->natural '(0 0 1 1))
+;;(binary->natural '(1 0 1 0 1))
+;;(binary->natural '(1 1 1 1 1 1 1 1 1 1 1 1 1))
+
+
+;;Problem 14
+
+(define div
+  (λ (x y)
+    (cond
+      ((zero? x) 0)
+      (else
+       (add1(div (- x y) y))))))
+;;(div 25 5)
+;;(div 36 6)
+;;(div 45 9)
+;;(div 20 2)
+
+;;Problem 15
+(define append-map
+  (λ (p ls)
+    (cond
+      ((null? ls) '())
+      (else
+       (append (p (car ls)) (append-map p (cdr ls)))))))
+;;(append-map countdown (countdown 5))
+
+;;Problem 16
+;;Helper
+(define is-in?
+  (λ (x s1)
+    (cond
+      ((null? s1) #f)
+      ((eqv? (car s1) x) #t)
+      (else
+       (is-in? x (cdr s1))))))
+;;(is-in? 4 '(4 8 11))
+;;(is-in? 6 '(4 8 11))
+
+(define set-difference
+  (λ (s1 s2)
+  (cond
+    ((null? s1) '())
+    ((is-in? (car s1) s2) (set-difference (cdr s1) s2))
+    (else
+     (cons (car s1) (set-difference (cdr s1) s2))))))
+;;(set-difference '(1 2 3 4 5) '(2 6 4 8))
+
+;;Brainteasers! That are required for me
+
+;;Problem 17
+;;Original function:
+(define G
+  (λ (i)
+    (cond
+      ((zero? i)
+       (λ (n m)
+         (cond
+           ((zero? m) n)
+           (else (add1 ((G 0) n (sub1 m)))))))
+      ((zero? (sub1 i))
+       (λ (n m)
+         (cond
+           ((zero? m) 0)
+           (else ((G 0) n ((G 1) n (sub1 m)))))))
+      (else
+       (λ (n m)
+         (cond
+           ((zero? m) 1)
+           (else
+            ((G (sub1 i)) n ((G i) n (sub1 m))))))))))
+;;((G 0) 4 5)
+;;((G 1) 6 5)
+;;((G 2) 2 4)
+(define G-1  ;;I couldn't figure out and ran out of time on this question, this mini-simplification is all I had and the
+  (λ (i)  ;;Exponent doesnt even work correctly, but everything else should be good
+    (cond
+      ((zero? i)
+       (λ (n m)
+         (cond
+           ((zero? m) n)
+           (else (add1 ((G-1 0) n (sub1 m)))))))
+      ((zero? (sub1 i))
+       (λ (n m)
+         (cond
+           ((zero? m) 0)
+           (else ((G-1 0) n ((G-1 1) n (sub1 m)))))))
+      (else
+       (λ (n m)
+         (cond
+           ((zero? m) 0)
+           (else ((G-1 0) n ((G-1 i) n (sub1 m))))))))))
+;;((G-1 0) 4 5)
+;;((G-1 1) 6 5)
+;;((G-1 2) 2 4)
+
+
+;;Simplified Final function
+(define G-Final
+  (λ (i)
+    (λ (n m)
+      (cond
+        ((zero? m)
+         (cond
+           ((zero? i) n)
+           ((zero? (sub1 i)) 0)
+           (else 1)))
+        ((zero? i) (add1 ((G 0) n (sub1 m))))
+        (else ((G (sub1 i)) n ((G i) n (sub1 m))))))))
+
+
+
+;;Problem 18
+(define powerset
+  (λ (x)
+    (cond
+      ((null? x) (list '()))
+      (else
+         (append (powerset (cdr x))
+                 (map (λ (lst) (cons (car x) lst))
+                     (powerset (cdr x))))))))
+
+;;(powerset '(3 2 1))
+;;(powerset '())
+
+;;Problem 19
+(define cartesian-product  ;;This failed the autograder, but I dont know if its because the lists are in different order?
+  (λ (x y)
+  (cond
+    ((null? x) '())
+    (else
+     (append(map (λ (elem) (list (car x) elem)) y) (cartesian-product (cdr x) y))))))
+(cartesian-product '(5 4) '(3 2 1))
+
+;;Problem 20
+(define C
+  (letrec
+      ((C (lambda (x)
+            (cond
+              ((eqv? x 1) 1)
+              ((even? x) (C (/ x 2)))
+              (else
+               (C (+ (* 3 x) 1))))))) ;;Not sure if supposed to be naturally recursive becuase its literally a math function?
+    C))
+;;(C 12)
+;;(C 120)
+;;(C 9999)

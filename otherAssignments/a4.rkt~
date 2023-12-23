@@ -1,0 +1,43 @@
+#lang racket
+(define value-of
+  (λ (e env)
+    (match e
+      (`,n #:when (number? n) n)
+      (`#t #t)
+      (`#f #f)
+      (`(lambda (,x) ,body)
+       #:when (symbol? x)
+       (lambda (arg)
+         (value-of body
+                   (lambda (y)
+                     (cond
+                       ((eqv? y x) arg)
+                       (else (env y))
+                       )))
+         ))
+      (`zero? zero?)
+      (`sub1 sub1) 
+      (`(if (,pred ,x) ,true-case ,false-case)
+       (if ((value-of pred env) (value-of x env)) 
+           (value-of true-case env)
+           (value-of false-case env))
+       )
+      (`(let ((,x ,e)) ,body)
+       (value-of body
+                 (lambda (y)
+                   (cond
+                     ((eqv? y x) (value-of e env))
+                     (else (env y))
+                     )))
+       )
+      (`(* ,e1 ,e2)
+       (* (value-of e1 env) (value-of e2 env))
+       )
+      (`,y #:when (symbol? y) (env y))
+       ;;Handling Begin and Set!
+      (`(begin2 ,x ,y)
+       (value-of x env) (value-of y env))
+      (`(set! ,x ,y)
+       (set-box! (value-of x env)) ((value-of y env) x))
+      (`(,rator ,rand)
+       ((value-of rator env) (value-of rand env))))))
