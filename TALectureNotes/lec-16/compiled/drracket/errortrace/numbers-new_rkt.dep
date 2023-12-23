@@ -1,0 +1,1 @@
+("8.10" ta6osx ("86379bad353fc6729ca52231a60a4aa87dcd6c31" . "ad5dad8a8f0291628dab64b2c4871c7af7e12bd2") #"/Users/jonathanwells/Desktop/Programming Languages/TALectureNotes/lec-16/mk-new.rkt" (collects #"drracket" #"private" #"drracket-errortrace-key.rkt") (collects #"racket" #"main.rkt") (collects #"racket" #"runtime-config.rkt"))

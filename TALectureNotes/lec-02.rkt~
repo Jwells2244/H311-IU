@@ -1,0 +1,84 @@
+#lang racket
+
+(define add
+  (lambda (n m)
+    (cond
+      ((zero? m) n)
+      (else (add1 (add n (sub1 m)))))))
+
+(add 2 3)
+(add 3 5)
+
+(define mult
+  (lambda (n m)
+    (cond
+      ((zero? m) 0)
+      (else (add n (mult n (sub1 m)))))))
+
+(mult 7 6)
+
+(define expt
+  (lambda (n m)
+    (cond
+      ((zero? m) 1)
+      (else (mult n (expt n (sub1 m)))))))
+
+(expt 2 3)
+(expt 4 3)
+
+(define tetr
+  (lambda (n m)
+    (cond
+      ((zero? m) 1)
+      (else (expt n (tetr n (sub1 m)))))))
+
+(tetr 2 3)
+;; (tetr 3 5)
+
+(define G
+  (lambda (i)
+    (cond
+      ((zero? i)
+       (lambda (n m)
+         (cond
+           ((zero? m) n)
+           (else (add1 ((G 0) n (sub1 m)))))))
+      ((zero? (sub1 i))
+       (lambda (n m)
+         (cond
+           ((zero? m) 0)
+           (else ((G 0) n ((G 1) n (sub1 m)))))))
+      (else
+       (lambda (n m)
+         (cond
+           ((zero? m) 1)
+           (else ((G (sub1 i)) n ((G i) n (sub1 m))))))))))
+
+(define add^ (λ (n m)  ((G 0) n m)))
+(define mult^ (λ (n m) ((G 1) n m)))
+(define expt^ (λ (n m) ((G 2) n m)))
+(define tetr^ (λ (n m) ((G 3) n m)))
+
+;; (add^ 5 8)
+;; (mult^ 9 5)
+;; (expt^ 3 5)
+;; (tetr^ 2 4)
+
+;; (define G^
+;;   (λ (i)
+;;     (λ (n m)
+;;       (cond
+;;         ((zero? m)
+;;          (cond
+;;            ((zero? i) n)
+;;            ((zero? (sub1 i)) 0)
+;;            (else 1)))
+;;         ((zero? i) (add1 ((G^ 0) n (sub1 m))))
+;;         (else ((G^ (sub1 i)) n ((G^ i) n (sub1 m))))))))
+
+(define rember8
+  (λ (ls)
+    (cond
+      ((empty? ls) empty)
+      ((eqv? (car ls) 8) (rember8 (cdr ls)))
+      (else (cons (car ls) (rember8 (cdr ls)))))))

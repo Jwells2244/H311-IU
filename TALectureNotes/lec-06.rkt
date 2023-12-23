@@ -1,0 +1,234 @@
+#lang racket
+(require racket/trace)
+
+;; We saw an interpreter for the λ calculus last class,
+;;Standard lambda calculus intepreter.
+(define val-of
+  (λ (e env)
+    (match e
+      (`,n #:when (number? n) n)
+      (`(+ ,e1 ,e2)
+       (+ (val-of e1 env)
+          (val-of e2 env)))
+      ; Lookup the symbol y in environment
+      (`,y #:when (symbol? y) (env y)) ;;Apply env
+      ; Return function
+      (`(λ (,x) ,body)
+       #:when (symbol? x)
+       (λ (arg) ;Extending the environment
+         ; We also need to extend the environment
+         (val-of body
+          (λ (y)
+            (cond
+              ((eqv? y x) arg)
+              (else (env y)))))));;Apply env
+      ; Application should apply and of course,
+      ; natural recursion
+      (`(,rator ,rand)
+       ((val-of rator env) (val-of rand env))))))
+
+;In this intepreter, the env is represented as a function, where it can be applied to the symbol y in that case for example
+;But, this environment can be represented by anything that can associate variables to values. But right now, every time we change the
+;representation of the environment we have to modify the interpreter even though the logic around working with the environment doesn't change.
+;How do we get around this? We make the interpreter representation independent (RI) with respect to environments.
+;To make something representation independent with respect to anything, we need to scoop out the code that exposes the anything,
+;and put the scoop into a function, and replace it with a function call to the new function that performs the same functionality.
+;Also called higher order functions
+;; In the above interpreter we represent the environment as
+;; a function, but it can be represented by anything that can
+;; associate variables to values. Every time we change the representation
+;; of the environment we have to modify the interpreter even though
+;; the logic around working with the environment doesn't change.
+;; How do we get around this? We make the interpreter
+;; representation independent (RI) with respect to environments.
+
+;; We do this by "scooping like 🍨" out the code that exposes that environment
+;; is a function and replace it with a function call that performs the
+;; same functionality.
+
+;; RI with respect to environments using higher order functions
+#|
+(define val-of
+  (λ (e env)
+    (match e
+      (`,n #:when (number? n) n)
+      (`(+ ,e1 ,e2)
+       (+ (val-of e1 env)
+          (val-of e2 env)))
+      ; Lookup the symbol y in environment
+      (`,y #:when (symbol? y)
+           (apply-env env y))
+      ; Return function
+      (`(λ (,x) ,body)
+       #:when (symbol? x) ;Making a closure
+       (λ (arg)
+         ; We also need to extend the environment
+         (val-of body (extend-env x arg env))))
+      ; Application should apply and of course,
+      ; natural recursion
+      (`(,rator ,rand) ;;Applying a closure
+       ((val-of rator env) (val-of rand env))))))
+
+;Now that we have these helper functions, we only need to modify these when trying to change the representation of environments
+;instead of changing the whole interpreter every time. It is basically abstraction.
+;; We only have to  modify these helper functions when
+;; we change the representation of environments.
+(define apply-env
+  (λ (env y)
+    (env y)))
+
+(define extend-env
+  (λ (x arg env)
+    (λ (y)
+      (cond
+        ((eqv? y x) arg)
+        (else
+         (apply-env env y))))))
+
+(define empty-env
+  (λ ()
+    (λ (y)
+      (error 'val-of "unbound ~a" y))))
+|#
+
+
+;Evaluating a lambda expression gives us a racket function. Since Racket is lexically scoped,
+;This racket function carries its environment with it, meaning it remembers the associations for variables at
+;the time of creating the function. Such a function that contains an environment along with its formal and body is also known as a closure
+;A closure is a function that contains an environment along with its formal and body for the association of a variable 
+;; Evaluating a λ expression gives us a Racket function.
+;; Since Racket is lexically scoped (we'll come back to
+;; this later), this Racket function carries its environment
+;; with it i.e. it remembers the associations for variables at the
+;; time of creating the function. Such a function that contains
+;; an environment along with its formal and body
+;; is also known as a closure.
+
+
+;; Let us make closures representation independent as well
+;; so that we can use closure representations that are not
+;; Racket functions.
+
+;; Representation Independence with respect to environments and closures
+(define val-of
+  (λ (e env)
+    (match e
+      (`,n #:when (number? n) n)
+      (`(+ ,e1 ,e2)
+       (+ (val-of e1 env)
+          (val-of e2 env)))
+      ; Lookup the symbol y in environment
+      (`,y #:when (symbol? y)
+           (apply-env env y))
+      ; Return function
+      (`(λ (,x) ,body)
+       #:when (symbol? x)
+       (make-closure x body env))
+      ; Application should apply and of course,
+      ; natural recursion
+      (`(,rator ,rand)
+       (apply-closure
+        (val-of rator env)
+        (val-of rand env))))))
+
+#|
+;; Helper functions that use higher order functions as
+;; representation for environments and cloures.
+;; (try uncommenting these)
+(define apply-env
+  (λ (env y)
+    (env y)))
+
+
+(define extend-env
+  (λ (x arg env)
+    (λ (y)
+      (cond
+        ((eqv? y x) arg)
+        (else (apply-env env y))))))
+
+(define empty-env
+  (λ ()
+    (λ (y)
+      (error "unbound variable ~a" y))))
+
+(define apply-clos
+  (λ (rator rand)
+    (rator rand)))
+
+(define make-clos
+  (λ (x body env)
+    (λ (arg)
+      (val-of body (extend-env x arg env)))))
+
+(val-of '(((λ (a) (λ (b) b)) 5) 6) (empty-env))
+|#
+
+;;These are standard environment and closure representation independent functions.
+;Now we can swap out these old helper functions with new ones that use tagged-list-representation, without changing the previous
+;val-of function. Tagged lists are lists whose car is always a symbol that we call the tag of the list.
+;; Now that we have made both environments and closures RI,
+;; we can swap out the old helper functions for environments
+;; and closures with new ones that use tagged list representation
+;; without changing the previous val-of function.
+
+;; Tagged lists are lists whose car is always a symbol that
+;; we call the tag of the list.
+
+
+;; Helper functions that use tagged lists as
+;; representation for environments and closures.
+;; (If you uncomment the higher order function representation
+;; helper functions, then comment this set of helper functions)
+(define apply-env
+  (λ (env y)
+    (match env
+      (`(empty-env)
+       (error 'val-of "unbound ~a" y))
+      (`(extend-env ,x ,arg ,env)
+       (cond
+         ((eqv? y x) arg)
+         (else
+          ;; env is bound to pattern variable and
+          ;; not to formal.
+          (apply-env env y))))
+      #;(_ (env y))))) ; ← start with this, comment at end.
+
+(define extend-env
+  (λ (x arg env)
+    `(extend-env ,x ,arg ,env)))
+
+(define empty-env
+  (λ ()
+    `(empty-env)))
+
+(define apply-closure
+  (λ (clos arg)
+    (match clos
+      (`(make-closure ,x ,body ,env)
+       (val-of body (extend-env x arg env)))
+      #;(_ (clos arg)))))
+
+(define make-closure
+  (λ (x body env)
+    `(make-closure ,x ,body ,env)))
+;These are tagged list representations.
+(trace val-of)
+
+
+#;
+(val-of 'y (empty-env))
+(val-of '(((λ (w) (λ (z) (+ 5 (+ w z)))) 1) 2)
+          (empty-env))
+
+(val-of 'y (extend-env 'y 10 (empty-env)))
+;One major advantage of using tagged lists as a representation is that the environments and closures
+;look like composed function calls in the trace rather than opaque racket procedures.
+;; One major advantage of using tagged lists as a
+;; representation is that the environments and closures
+;; look like composed function calls in the trace rather
+;; than opaque Racket procedures.
+
+;; You can swap between the two representations by uncommenting
+;; one set of helper functions and commenting the other set
+;; of helper functions.

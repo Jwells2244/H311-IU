@@ -1,0 +1,166 @@
+#lang racket
+(require racket/trace)
+
+(define length-cps
+  (λ (ls k)
+    (cond
+      ((null? ls) (k 0))
+      (else (length-cps (cdr ls)
+                        (λ (v)
+                          (k (add1 v))))))))
+
+;; (trace length-cps)
+;; (length-cps '(a b c d e) (λ (v) v))
+
+(define length-cps²
+  (λ (ls k c)
+    (cond
+      ((null? ls) (k 0 c))
+      (else (length-cps² (cdr ls)
+                         (λ (v c^)
+                           (k (add1 v) c^))
+                         c)))))
+
+;; (trace length-cps²)
+;; (length-cps² '(a b c d e)
+;;              (λ (v k)
+;;                (k v))
+;;              (λ (v) v))
+
+(define fib-memo
+  (let ((memo '((0 . 1) (1 . 1))))
+    (λ (n)
+      (cond
+        ((assv n memo)
+         =>
+         (λ (p)
+           (cdr p)))
+        (else
+         (let ((rst (+ (fib-memo (sub1 n))
+                       (fib-memo (sub2 n)))))
+           (set! memo
+                 (cons `(,n . ,rst) memo))
+           rst))))))
+
+(define sub2
+  (λ (n) (sub1 (sub1 n))))
+
+(define fib-memo-cps
+  (let ((memo '((0 . 1) (1 . 1))))
+    (λ (n k)
+      (cond
+        ((assv n memo)
+         =>
+         (λ (p)
+           (k (cdr p))))
+        (else
+         (fib-memo-cps (sub1 n)
+                       (λ (v)
+                         (fib-memo-cps (sub2 n)
+                                       (λ (w)
+                                         (let ((rst (+ v w)))
+                                           (set! memo
+                                                 (cons `(,n . ,rst) memo))
+                                           (k rst)))))))))))
+
+;; (time (fib-memo-cps 40000 (λ (v) v)))
+;; (time (fib-memo 40000))
+
+(+ 9 (+ (+ 3 4) 5))
+
+(+ 9 (+ (let/cc k (k (+ 3 4)))
+        5))
+
+(let/cc k (k (+ 3 4)))
+
+(call/cc (λ (k)
+           (k (+ 3 4))))
+
+(+ 9 (+ (call/cc (λ (k) (k (+ 3 4))))
+        5))
+
+(+ 9 (let/cc k (k (k (k (+ (k 4) (k 3)))))))
+
+(let/cc k (+ (k k) (k 4)))
+
+(let ((c (let/cc k (+ (k k) (k 4)))))
+  (if (number? c)
+      (begin
+        (printf "In true case\n")
+        c)
+      (begin
+        (printf "In false case\n")
+        (c 5))))
+
+;; (let ((c ...))
+;;   (if (number? c)
+;;       (begin
+;;         (printf "In true case\n")
+;;         c)
+;;       (begin
+;;         (printf "In false case\n")
+;;         (c 5))))
+
+(let ((n 5)
+      (r 1))
+  (let ((c (let/cc k (k k))))
+    (if (zero? n)
+        r
+        (begin
+          (set! r (* n r))
+          (set! n (sub1 n))
+          (c c)))))
+
+(define value-of
+  (λ (e env)
+    (match e
+      (`,n #:when (number? n) n)
+      (`,y #:when (symbol? y) (env y))
+      (`(λ (,var) ,body)
+       #:when (symbol? var)
+       (λ (arg)
+         (value-of body (λ (y)
+                          (cond
+                            ((eq? y var) arg)
+                            (else (env y)))))))
+      (`(,rator ,rand)
+       ((value-of rator env) (value-of rand env))))))
+
+(trace value-of)
+(value-of '(λ (a) 5) (λ (y) (error "Not found!")))
+(value-of '((λ (a) a) 5) (λ (y) (error "Not found!")))
+
+(define value-of-cps
+  (λ (e env k)
+    (match e
+      (`,n #:when (number? n) (k n))
+      (`,y #:when (symbol? y) (env y k))
+      (`(sub1 ,n-exp) (sub1 n-exp))
+      (`(λ (,var) ,body)
+       #:when (symbol? var)
+       (k (λ (arg k^^)
+            (value-of-cps body
+                          (λ (y k^)
+                            (cond
+                              ((eqv? y var) (k^ arg))
+                              (else (env y k^))))
+                          k^^))))
+      (`(,rator ,rand)
+       (value-of-cps rator
+                     env
+                     (λ (clos)
+                       (value-of-cps rand
+                                     env
+                                     (λ (v)
+                                       (clos v k)))))))))
+
+(trace value-of-cps)
+(value-of-cps '(λ (a) 5)
+              (λ (y) (error "Not found!"))
+              (λ (v) v))
+(value-of-cps '((λ (a) a) 5)
+              (λ (y) (error "Not found!"))
+              (λ (v) v))
+(value-of-cps '((λ (a) (sub1 a)) 5)
+              (λ (y) (error "Not found!"))
+              (λ (v) v))

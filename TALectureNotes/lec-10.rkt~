@@ -1,0 +1,81 @@
+#lang racket
+(require racket/trace)
+
+(define length
+  (λ (ls)
+    (cond
+      ((null? ls) 0)
+      (else (add1 (length (cdr ls)))))))
+
+(define length-cps
+  (λ (ls k)
+    (cond
+      ((null? ls) (k 0))
+      (else (length-cps (cdr ls)
+                        (λ (v)
+                          (k (add1 v))))))))
+
+;; (trace length)
+;; (length '(1 2 3 4 5))
+;; (trace length-cps)
+;; (length-cps '(1 2 3 4 5) (λ (x) x))
+
+(define sub2 (λ (n) (sub1 (sub1 n))))
+
+(define fib
+  (λ (n)
+    (cond
+      ((zero? n) 1)
+      ((zero? (sub1 n)) 1)
+      (else (+ (fib (sub1 n))
+               (fib (sub2 n)))))))
+(trace fib)
+(fib 5)
+
+(define fib-cps
+  (λ (n k)
+    (cond
+      ((zero? n) (k 1))
+      ((zero? (sub1 n)) (k 1))
+      (else (fib-cps (sub1 n)
+                     (λ (v)
+                       (fib-cps (sub2 n)
+                                (λ (w)
+                                  (k (+ v w))))))))))
+;; (trace fib-cps)
+;; (fib-cps 5 (lambda (x) x))
+;; (time (fib-cps 40 (lambda (x) x)))
+
+(define fib-memo
+  (let ((memo '((0 . 1) (1 . 1))))
+    (λ (n)
+      (cond
+        ((assv n memo) => (λ (p)
+                            (cdr p)))
+        (else (let ((rst (+ (fib-memo (sub1 n))
+                            (fib-memo (sub2 n)))))
+                (set! memo (cons `(,n . ,rst) memo))
+                rst))))))
+;; (trace fib-memo)
+;; (fib-memo 6)
+;; (time (fib-memo 40000))
+
+(define rember*8-cps
+  (λ (ls k)
+    (cond
+      ((null? ls) (k '()))
+      ((pair? (car ls))
+       (rember*8-cps (car ls)
+                     (λ (v)
+                       (rember*8-cps (cdr ls)
+                                     (λ (w)
+                                       (k (cons v w)))))))
+      ((eqv? 8 (car ls)) (rember*8-cps (cdr ls) k))
+      (else
+       (rember*8-cps (cdr ls)
+                     (λ (v)
+                       (k (cons (car ls) v))))))))
+
+(trace rember*8-cps)
+(rember*8-cps '(8 ((1 8 3 8 2 8 2) (3 27 8)))
+              (λ (x) x))

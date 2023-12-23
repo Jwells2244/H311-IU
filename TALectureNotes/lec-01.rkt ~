@@ -1,0 +1,101 @@
+#lang racket
+
+;; Numbers
+4
+-34
+0
+
+'foo
+
+;; define
+(define foo 'bar)
+
+;; let
+(let ((v 5)
+      (x 10)
+      (y 10))
+  (+ x y))
+
+;; lambda
+(lambda (n)
+  (+ 10 n))
+
+(define add10
+  (lambda (n)
+    (+ 10 n)))
+
+;; application
+(add10 5)
+;; (add10 10 20)
+
+;; Booleans
+#t
+#f
+
+;; Conditionals
+;; (cond
+;;   [test1 expr1]
+;;   (test2 expr2)
+;;   ...
+;;   (else else-expr))
+
+(define abs
+  (lambda (n)
+    (cond
+      ((< n 0) (* n -1))
+      (else n))))
+
+(abs -10)
+(abs 10)
+(abs 0)
+
+(+ 2 7)
+(add1 9)
+(sub1 9)
+
+(define add
+  (lambda (m n)
+    (cond
+      ((zero? m) n)
+      (else (add1 (add (sub1 m) n))))))
+
+(add 5 10)
+(add 0 0)
+(add 10 10)
+
+(define mult
+  (lambda (m n)
+    (cond
+      ((zero? m) 0)
+      (else (add n (mult (sub1 m) n))))))
+
+(mult 2 3)
+(mult 5 5)
+(mult 0 10)
+
+;; Pairs
+(define pair (cons 2 3))
+(car pair)
+(cdr pair)
+
+;; Lists
+(define list (cons 1 (cons 2 (cons 3 (cons 4 empty)))))
+(define list^ '(1 2 3 4))
+
+(define upto
+  (lambda (n)
+    (cond
+      ((zero? n) empty)
+      (else (cons n (upto (sub1 n)))))))
+(upto 4)
+
+(define rember8
+  (lambda (ls)
+    (cond
+      ((empty? ls) empty)
+      ((eqv? (car ls) 8) (rember8 (cdr ls)))
+      (else (cons (car ls) (rember8 (cdr ls)))))))
+
+(rember8 '(2 1 8 6 4 8))
+(rember8 '(8 8 8 8))
+(rember8 '(1 2 3 4 5 6))

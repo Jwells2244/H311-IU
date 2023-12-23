@@ -1,0 +1,103 @@
+#lang racket
+
+;; Numbers
+4
+-34
+0
+
+'foo
+
+;; define
+(define foo 'bar)
+
+;; let
+(let ((v 5)
+      (x 10)
+      (y 10))
+  (+ x y))
+
+;; lambda
+(lambda (n)
+  (+ 10 n))
+
+(define add10
+  (lambda (n)
+    (+ 10 n)))
+
+;; application
+(add10 5)
+;; (add10 10 20)
+
+;; Booleans
+#t
+#f
+
+;; Conditionals
+;; (cond
+;;   [test1 expr1]
+;;   (test2 expr2)
+;;   ...
+;;   (else else-expr))
+
+(define abs
+  (lambda (n)
+    (cond
+      ((< n 0) (* n -1))
+      (else n))))
+
+(abs -10)
+(abs 10)
+(abs 0)
+
+(+ 2 7)
+(add1 9)
+(sub1 9)
+
+(define add ;;Takes in two numbers
+  (lambda (m n)
+    (cond
+      ((zero? m) n) ;;Checks if the first number is 0, if it is it returns n
+      (else (add1 (add (sub1 m) n)))))) ;;Recursively calls add with m-1 and n, and once m get to be 0, n is returned +
+;;all of the add1s that have been called to get the m down to 0
+
+(add 5 10)
+(add 0 0)
+(add 10 10)
+
+(define mult 
+  (lambda (m n) ;;Takes in two parameters
+    (cond
+      ((zero? m) 0) ;;Checks if m is zero
+      (else (add n (mult (sub1 m) n)))))) ;;If m is not zero, calls the add function with n + the recursively called mult
+;;taking away from m each time, just like in add
+
+(mult 2 3)
+(mult 5 5)
+(mult 0 10)
+
+;; Pairs ;;Pair is a 2 length list of items
+(define pair (cons 2 3))
+(car pair)
+(cdr pair)
+
+;; Lists
+(define list (cons 1 (cons 2 (cons 3 (cons 4 empty)))))
+(define list^ '(1 2 3 4)) ;;list function makes a list with what it is given
+
+(define upto ;;Takes in a number and returns a list with numbers going down from n to 1
+  (lambda (n)
+    (cond
+      ((zero? n) empty) ;;If n is zero, returns empty so the last value in the list is 1
+      (else (cons n (upto (sub1 n))))))) ;;Returns the list cons the n value, + the recursively called n with one taken away from it
+(upto 4)
+
+(define rember8
+  (lambda (ls) ;;Takes in a list
+    (cond
+      ((empty? ls) empty) ;;If the list is empty, returns an empty list because this function uses cons
+      ((eqv? (car ls) 8) (rember8 (cdr ls))) ;;If equivalent to 8, returns just the cdr of the list in the recursive call
+      (else (cons (car ls) (rember8 (cdr ls))))))) ;;If the car is not equivalent to 8, returns a cons with the recursive call of the cdr
+
+(rember8 '(2 1 8 6 4 8))
+(rember8 '(8 8 8 8))
+(rember8 '(1 2 3 4 5 6))

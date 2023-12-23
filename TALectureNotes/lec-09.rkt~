@@ -1,0 +1,351 @@
+#lang racket
+
+;; Today we will implement 4 interpreters which exibit
+;; different parameter-passing conventions. But before that
+;; we will introduce thunks.
+
+(define loop
+  (λ ()
+    (loop)))
+
+(define ef
+  (lambda (test conseq alt)
+    (if (test)
+        (conseq)
+        (alt))))
+
+(ef (lambda () (zero? 0))
+    (lambda () (+ 3 8))
+    (lambda () (* 3 8)))
+
+(define ef^
+  (lambda (test conseq alt)
+    (if test
+        (conseq)
+        (alt))))
+
+(ef^ (zero? 0)
+     (lambda () (+ 3 8))
+     (lambda () (* 3 8)))
+
+(ef^ (zero? 0)
+     (lambda () (+ 3 8))
+     (lambda () (loop)))
+
+(define val-of
+  (λ (e env)
+    (match e
+      (`,y #:when (symbol? y) (env y))
+      (`,n #:when (number? n) n)
+      (`(+ ,nexpr1 ,nexpr2)
+       (+ (val-of nexpr1 env)
+          (val-of nexpr2 env)))
+
+      (`(λ (,x) ,body)
+       #:when (symbol? x)
+       (λ (arg)
+         ; We also need to extend the environment
+         (val-of body (λ (y)
+                        (cond
+                          ((eqv? y x) arg)
+                          (else (env y)))))))
+      (`(,rator ,rand)
+       ((val-of rator env) (val-of rand env))))))
+
+;; We will do so, by adding set! and begin to that language
+;; that our interpreter is concerned with and using racket's boxes.
+;; This works exactly like our old interpreter but,
+;;  - enviroment now maps variables to boxed values instead of just values.
+(define value-of-cbv
+  (λ (e env)
+    (match e
+      (`,y #:when (symbol? y) (unbox (env y)))
+      (`,n #:when (number? n) n)
+      (`(+ ,nexpr1 ,nexpr2)
+       (+ (value-of-cbv nexpr1 env)
+          (value-of-cbv nexpr2 env)))
+      (`(begin2 ,exp1 ,exp2)
+       (begin (value-of-cbv exp1 env)
+              (value-of-cbv exp2 env)))
+      (`(set! ,x ,expr)
+       #:when (symbol? x)
+       (set-box! (env x)
+                 (value-of-cbv expr env)))
+      (`(λ (,x) ,body)
+       #:when (symbol? x)
+       (λ (arg)
+         ; We also need to extend the environment
+         (value-of-cbv body (λ (y)
+                              (cond
+                                ((eqv? y x) arg)
+                                (else (env y)))))))
+      (`(,rator ,rand)
+       ((value-of-cbv rator env)
+        (box (value-of-cbv rand env)))))))
+
+(define mt-env
+  (λ ()
+    (λ (y)
+      (error 'empty-env "Unbound ~a~n" y))))
+
+(value-of-cbv '(((λ (x)
+                   (λ (y)
+                     (begin2 (set! x y)
+                             (+ x y))))
+                 7)
+                5)
+              (mt-env))
+(value-of-cbv '(((λ (x)
+                   (λ (y)
+                     (begin2 ((λ (x)
+                                (set! x y) )
+                              x)
+                             (+ x y))))
+                 7)
+                5)
+              (mt-env))
+(value-of-cbv '((λ (x)
+                  ((λ (y)
+                     (begin2 (set! x 3)
+                             y))
+                   x))
+                5)
+              (mt-env))
+(value-of-cbv '((λ (w)
+                 ((λ (x)
+                    ((λ (y)
+                      ((λ (z)
+                         (begin2 (set! w 10)
+                                 z))
+                       w))
+                     9))
+                  7))
+                5)
+              (mt-env))
+
+;; That was the first parameter passing convention,
+;; Now for the second one, instead of passing values
+;; we will we passing references to these values.
+
+;; This returns 5 in usual cbv semantics.
+(value-of-cbv '((λ (x)
+                  ((λ (y)
+                     (begin2 (set! y 2) x))
+                   x))
+              5)
+            (mt-env))
+;; However, given the call-by-reference semantics, y will be
+;; bound to the same reference in memory as the x was and so
+;; when one is changed, the other will also change.
+(define value-of-cbr
+  (λ (e env)
+    (match e
+      (`,y #:when (symbol? y) (unbox (env y)))
+      (`,n #:when (number? n) n)
+      (`(+ ,nexpr1 ,nexpr2)
+       (+ (value-of-cbr nexpr1 env)
+          (value-of-cbr nexpr2 env)))
+      (`(begin2 ,exp1 ,exp2)
+       (begin (value-of-cbr exp1 env)
+              (value-of-cbr exp2 env)))
+      (`(set! ,x ,expr)
+       #:when (symbol? x)
+       (set-box! (env x)
+                 (value-of-cbr expr env)))
+      (`(λ (,x) ,body)
+       #:when (symbol? x)
+       (λ (arg)
+         ; We also need to extend the environment
+         (value-of-cbr body (λ (y)
+                              (cond
+                                ((eqv? y x) arg)
+                                (else (env y)))))))
+      (`(,rator ,x)
+       #:when (symbol? x)
+       ((value-of-cbr rator env) (env x)))
+      (`(,rator ,rand)
+       ((value-of-cbr rator env)
+        (box (value-of-cbr rand env)))))))
+
+(value-of-cbr '((λ (x)
+                  ((λ (y)
+                     (begin2 (set! x 3) y))
+                   x))
+                5)
+              (mt-env))
+
+(value-of-cbr '((λ (w)
+                 ((λ (x)
+                    ((λ (y)
+                      ((λ (z)
+                         (begin2 (set! w 10)
+                                 z))
+                       w))
+                     9))
+                  7))
+                5)
+              (mt-env))
+
+(define fib
+  (λ (n)
+    (cond
+      ((<= n 1) 1)
+      (else (+ (fib (sub1 n)) (fib (sub1 (sub1 n))))))))
+
+;; We now think of when is stuff evaluated?
+;; The following ex. in both cbv and cbr would never halt
+;; as those interpreters would need the value of operand
+;; even if it is not needed and here since it is Ω we will
+;; never get a value.
+;; ((λ (f)
+;;    (if (zero? 0)
+;;        5 f))
+;;  ((loop)))
+
+;; How do we enforce evaluation only when it is needed?
+;; → Thunks aka λs with no argument.
+;; So, what we can do is to store what to evaluate and
+;; evaluate it as many times as needed.
+(define value-of-cbna
+  (λ (e env)
+    (match e
+      (`,y #:when (symbol? y)
+       ;; Here we unbox the thunk and invoke it.
+       ((unbox (env y))))
+      (`,n #:when (number? n) n)
+      (`(+ ,nexpr1 ,nexpr2)
+       (+ (value-of-cbna nexpr1 env)
+          (value-of-cbna nexpr2 env)))
+      (`(begin2 ,exp1 ,exp2)
+       (begin (value-of-cbna exp1 env)
+              (value-of-cbna exp2 env)))
+      (`(set! ,x ,expr)
+       #:when (symbol? x)
+       (set-box! (env x)
+                 (value-of-cbna expr env)))
+      (`(fib ,n)
+       #:when (number? n)
+       (fib n))
+      (`(loop) (loop))
+
+      (`(λ (,x) ,body)
+       #:when (symbol? x)
+       (λ (arg)
+         ; We also need to extend the environment
+         (value-of-cbna body (λ (y)
+                              (cond
+                                ((eqv? y x) arg)
+                                (else (env y)))))))
+      (`(,rator ,x)
+       #:when (symbol? x)
+       ((value-of-cbna rator env) (env x)))
+
+      (`(,rator ,rand)
+       ((value-of-cbna rator env)
+        ;; Here we bind a variable to a box of a thunk.
+        (box (λ ()
+               (printf "Expensive computation!!~n")
+               (value-of-cbna rand env))))))))
+
+(define Ω '((λ (x) (x x)) (λ (x) (x x))))
+
+(printf "CBNA Example 1~n")
+(value-of-cbna `(((λ (x)
+                   (λ (y)
+                     x))
+                 5000)
+                ,Ω)
+              (mt-env))
+
+(printf "CBNA Example 2~n")
+(value-of-cbna `((λ (n)
+                   (+ n
+                      (+ n
+                         (+ n
+                            (+ n n)))))
+                 (fib 10))
+               (mt-env))
+
+(define value-of-cbne
+  (λ (e env)
+    (match e
+      (`,y #:when (symbol? y)
+       (let ((b (env y)))
+         (let ((v ((unbox b))))
+           (begin
+             (set-box! b (λ () v))
+             v))))
+      (`,n #:when (number? n) n)
+      (`(+ ,nexpr1 ,nexpr2)
+       (+ (value-of-cbne nexpr1 env)
+          (value-of-cbne nexpr2 env)))
+      (`(begin2 ,exp1 ,exp2)
+       (begin (value-of-cbne exp1 env)
+              (value-of-cbne exp2 env)))
+      (`(set! ,x ,expr)
+       #:when (symbol? x)
+       (set-box! (env x)
+                 (value-of-cbne expr env)))
+      (`(fib ,n)
+       #:when (number? n)
+       (fib n))
+      (`(loop) (loop))
+      (`(λ (,x) ,body)
+       #:when (symbol? x)
+       (λ (arg)
+         ; We also need to extend the environment
+         (value-of-cbne body (λ (y)
+                              (cond
+                                ((eqv? y x) arg)
+                                (else (env y)))))))
+      (`(,rator ,x)
+       #:when (symbol? x)
+       ((value-of-cbne rator env) (env x)))
+
+      (`(,rator ,rand)
+       ((value-of-cbne rator env)
+        (box (λ ()
+               (printf "Expensive computation!!~n")
+               (value-of-cbne rand env))))))))
+
+(printf "CBNE Example 1~n")
+(value-of-cbne `(((λ (x)
+                   (λ (y)
+                     x))
+                 5000)
+                ,Ω)
+              (mt-env))
+
+(printf "CBNE Example 2~n")
+(value-of-cbne `((λ (n)
+                   (+ n
+                      (+ n
+                         (+ n
+                            (+ n n)))))
+                 5000)
+               (mt-env))
+
+(printf "CBNA Example 3~n")
+(time
+ (value-of-cbna '(((λ (x)
+                     (λ (y) (+ x x)))
+                   (fib 40))
+                  (loop))
+                (mt-env)))
+
+
+(printf "CBNA Example 3~n")
+(time
+ (value-of-cbna '(((λ (x)
+                     (λ (y) (+ x x)))
+                   (fib 40))
+                  (loop))
+                (mt-env)))
+
+(printf "CBNE Example 3~n")
+(time
+ (value-of-cbne '(((λ (x)
+                     (λ (y) (+ x x)))
+                   (fib 40))
+                  (loop))
+                (mt-env)))
