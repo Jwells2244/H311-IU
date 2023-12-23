@@ -1,0 +1,32 @@
+#lang racket
+(require racket/trace)
+
+;;; We convert this to ANF.
+(define factorial
+  (λ (*n* *k*)
+    (cond
+      [(zero? *n*)
+       (let* ((*ap-k* *k*)
+              (*v* 1))
+         (apply-k *ap-k* *v*))]
+      [else (factorial (sub1 *n*) (make-mult-k *n* *k*))])))
+
+;;; We also convert this to ANF.
+(define apply-k
+ (λ (*k* *v*)
+   (match *k*
+     [`(empty-k) *v*]
+     [`(make-mult-k ,n^ ,k^)
+      (apply-k k^ (* n^ *v*))])))
+(define empty-k
+  (λ ()
+    `(empty-k)))
+
+
+(define make-mult-k
+  (λ (n^ k^)
+    `(make-mult-k ,n^ ,k^)))
+
+
+(trace factorial)
+(factorial 5 (empty-k))

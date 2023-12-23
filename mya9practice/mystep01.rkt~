@@ -1,0 +1,12 @@
+#lang racket
+;;We start with a naturally recursive definition
+
+(define trib
+  (λ (n)
+    (cond
+      ((<= n 1) 0)
+      ((= n 2) 1)
+      (else (+ (trib (sub1 n)) (trib (sub1 (sub1 n))) (trib (sub1 (sub1 (sub1 n)))))))))
+
+
+(trib 8)

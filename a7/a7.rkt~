@@ -1,0 +1,19 @@
+#lang racket
+
+(define last-non-zero
+  (lambda (ls)
+    (let/cc k
+      (letrec
+    ((last-non-zero
+       (lambda (ls)
+         (cond))))
+ 
+ 
+    (last-non-zero ls)))))
+(last-non-zero '(0)) ;()
+
+(last-non-zero '(1 2 3 0 4 5)) ;(4 5)
+
+(last-non-zero '(1 0 2 3 0 4 5)) ;(4 5)
+
+(last-non-zero '(1 2 3 4 5)) ;(1 2 3 4 5)

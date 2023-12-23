@@ -1,0 +1,10 @@
+#lang racket
+
+;;; We start with a naturally recursive definition.
+(define fib
+  (λ (n)
+    (cond
+      ((<= n 1) 1)
+      (else (+ (fib (sub1 n)) (fib (sub1 (sub1 n))))))))
+
+(fib 5)
